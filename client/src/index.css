@@ -1,0 +1,154 @@
+/* client/src/index.css - estilos globales */
+:root{
+  --bg:#f6f8fb;
+  --card:#ffffff;
+  --muted:#6b7280;
+  --accent:#2563eb;
+  --accent-600:#1e40af;
+  --danger:#ef4444;
+  --glass: rgba(255,255,255,0.6);
+  --shadow: 0 6px 18px rgba(16,24,40,0.08);
+  --radius:12px;
+  --max-width:980px;
+  --gap:16px;
+  --pad:20px;
+}
+
+*{box-sizing:border-box}
+html,body,#root{height:100%}
+body{
+  margin:0;
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  background: linear-gradient(180deg, #f8fafc 0%, var(--bg) 100%);
+  color:#0f172a;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+  line-height:1.45;
+  padding:24px;
+}
+
+/* Layout container */
+.app-container{
+  max-width: var(--max-width);
+  margin: 24px auto;
+  background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.9));
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+/* Header */
+.app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 14px 20px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.6), rgba(250,250,250,0.6));
+  border-bottom: 1px solid rgba(15,23,42,0.04);
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.brand .logo{
+  width:40px;
+  height:40px;
+  border-radius:10px;
+  background: linear-gradient(135deg,var(--accent),var(--accent-600));
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:white;
+  font-weight:700;
+  box-shadow: 0 4px 10px rgba(37,99,235,0.18);
+}
+.brand .title{font-weight:600; font-size:16px}
+.header-actions button{
+  background:transparent;
+  border:1px solid rgba(15,23,42,0.06);
+  padding:8px 12px;
+  border-radius:8px;
+  cursor:pointer;
+  font-weight:600;
+}
+.header-actions button.primary{
+  background:var(--accent);
+  color:white;
+  border: none;
+}
+.header-actions button:hover{transform:translateY(-1px); transition:all .12s ease}
+
+/* Main content */
+.app-main{padding:24px}
+
+/* Login card */
+.login-card{
+  max-width:420px;
+  margin:48px auto;
+  background:var(--card);
+  border-radius:12px;
+  padding:28px;
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(15,23,42,0.04);
+}
+.login-card h2{margin:0 0 12px 0; font-size:20px}
+.form-row{margin-bottom:14px}
+label{display:block; font-size:13px; color:var(--muted); margin-bottom:6px}
+input[type="email"], input[type="password"], select, textarea{
+  width:100%;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(15,23,42,0.06);
+  background: linear-gradient(180deg, #fff, #fbfdff);
+  outline:none;
+  transition:box-shadow .12s ease, border-color .12s ease;
+}
+input:focus{box-shadow:0 6px 18px rgba(37,99,235,0.08); border-color:var(--accent-600)}
+.form-actions{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:8px}
+button.btn{
+  padding:10px 14px;
+  border-radius:10px;
+  border:none;
+  cursor:pointer;
+  font-weight:600;
+}
+button.btn.primary{
+  background:var(--accent);
+  color:white;
+  box-shadow: 0 8px 20px rgba(37,99,235,0.12);
+}
+button.btn.ghost{
+  background:transparent;
+  border:1px solid rgba(15,23,42,0.06);
+}
+
+/* Dashboard table */
+.table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+}
+.table th, .table td{
+  text-align:left;
+  padding:12px 10px;
+  border-bottom:1px solid rgba(15,23,42,0.04);
+}
+.table th{font-size:13px; color:var(--muted); font-weight:600}
+.table tbody tr:hover{background:linear-gradient(90deg, rgba(37,99,235,0.03), rgba(255,255,255,0.0))}
+
+/* Empty state */
+.empty{
+  padding:28px;
+  text-align:center;
+  color:var(--muted);
+  border-radius:10px;
+  background:linear-gradient(180deg, rgba(15,23,42,0.02), rgba(255,255,255,0.02));
+}
+
+/* Responsive */
+@media (max-width:640px){
+  .app-container{margin:12px}
+  .login-card{margin:24px 12px}
+  .header-actions button{padding:8px}
+}
