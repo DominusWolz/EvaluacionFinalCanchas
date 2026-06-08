@@ -1,15 +1,10 @@
 // client/src/components/ProtectedRoute.jsx
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-
-function getToken() {
-  return localStorage.getItem('token');
-}
+import { getToken } from '../api';
 
 export default function ProtectedRoute({ children }) {
   const token = getToken();
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!token) return <Navigate to="/login" replace />;
   return children;
 }

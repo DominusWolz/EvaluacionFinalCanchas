@@ -1,4 +1,3 @@
-// src/middlewares/authenticate.js
 const jwt = require('jsonwebtoken');
 const JWT_SECRET = process.env.JWT_SECRET || 'REEMPLAZAR_POR_SECRETO';
 
@@ -10,7 +9,9 @@ function authenticate(req, res, next) {
   const token = header.split(' ')[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    req.user = payload; // { userId: ... }
+    // normalize payload: ensure req.user.userId exists
+    req.user = payload;
+    if (!req.user.userId && req.user.idUsuario) req.user.userId = req.user.idUsuario;
     return next();
   } catch (err) {
     return res.status(401).json({ error: true, message: 'Token inválido o expirado' });

@@ -1,3 +1,4 @@
+// src/controllers/canchas.controller.js
 const Canchas = require('../models/canchas.model');
 
 async function list(req, res) {
@@ -34,4 +35,34 @@ async function create(req, res) {
   }
 }
 
-module.exports = { list, getById, create };
+// src/controllers/canchas.controller.js (solo las funciones update y remove)
+async function update(req, res) {
+  console.log('PUT /api/v1/canchas/:id - params:', req.params, 'body:', req.body, 'user:', req.user);
+  const id = req.params.id;
+  const { nombreCancha, deporte, descripcion, precioHora, Estado } = req.body;
+  try {
+    const affected = await Canchas.updateById(id, { nombreCancha, deporte, descripcion, precioHora, Estado });
+    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada' });
+    return res.json({ mensaje: 'Cancha actualizada' });
+  } catch (err) {
+    console.error('canchas.update error:', err);
+    // devolver detalles útiles para depuración (temporal)
+    const detail = err.sqlMessage || err.message || String(err);
+    return res.status(500).json({ error: true, message: 'Error interno', detail });
+  }
+}
+
+async function remove(req, res) {
+  console.log('DELETE /api/v1/canchas/:id - params:', req.params, 'user:', req.user);
+  const id = req.params.id;
+  try {
+    const affected = await Canchas.removeById(id);
+    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada' });
+    return res.json({ mensaje: 'Cancha eliminada' });
+  } catch (err) {
+    console.error('canchas.remove error:', err);
+    const detail = err.sqlMessage || err.message || String(err);
+    return res.status(500).json({ error: true, message: 'Error interno', detail });
+  }
+}
+module.exports = { list, getById, create, update, remove };

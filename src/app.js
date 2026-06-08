@@ -23,8 +23,10 @@ app.get('/api/v1/health', (req, res) => {
 // Montar rutas
 app.use('/api/v1/usuarios', usuariosRoutes);
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/canchas', canchasRoutes);
+app.use('/api/v1/canchas', require('./routes/canchas.routes'));
 app.use('/api/v1/reservaciones', reservacionesRoutes);
+
+
 
 app.listen(PORT, () => {
   console.log(`Servidor corriendo en http://localhost:${PORT}`);

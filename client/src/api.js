@@ -15,28 +15,43 @@ async function apiFetch(path, opts = {}) {
   const headers = opts.headers ? { ...opts.headers } : {};
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  if (!headers['Content-Type'] && !(opts.body instanceof FormData)) {
+
+  // Only set Content-Type when there is a body and it's not FormData
+  if (opts.body !== undefined && !(opts.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(url, { ...opts, headers });
-  if (res.status === 401) {
-    // sesión inválida: limpiar y redirigir a login
-    setToken(null);
-    localStorage.removeItem('user');
-    // pequeña demora para que el caller pueda manejar la respuesta si lo desea
-    window.location.href = '/login';
-    return Promise.reject({ status: 401, message: 'No autorizado' });
+  const fetchOpts = { ...opts, headers };
+  // ensure we don't pass undefined body to fetch
+  if (fetchOpts.body === undefined) delete fetchOpts.body;
+
+  try {
+    const res = await fetch(url, fetchOpts);
+    if (res.status === 401) {
+      // sesión inválida: limpiar y redirigir a login
+      setToken(null);
+      localStorage.removeItem('user');
+      window.location.href = '/login';
+      return Promise.reject({ status: 401, message: 'No autorizado' });
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('apiFetch error response', { url, status: res.status, data });
+        return Promise.reject({ status: res.status, data });
+      }
+      return data;
+    }
+    if (!res.ok) {
+      console.error('apiFetch non-json error', { url, status: res.status });
+      return Promise.reject({ status: res.status, data: null });
+    }
+    return res;
+  } catch (err) {
+    console.error('apiFetch network error', { url, err });
+    return Promise.reject({ status: 0, message: err.message || 'Network error' });
   }
-  const contentType = res.headers.get('content-type') || '';
-  if (contentType.includes('application/json')) {
-    const data = await res.json();
-    if (!res.ok) return Promise.reject({ status: res.status, data });
-    return data;
-  }
-  // si no es JSON, devolver el response crudo
-  if (!res.ok) return Promise.reject({ status: res.status, data: null });
-  return res;
 }
 
 export { apiFetch, setToken, getToken };
