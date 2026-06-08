@@ -23,15 +23,4 @@ async function create(req, res) {
   }
 }
 
-async function remove(req, res) {
-  try {
-    const affected = await Reservaciones.removeById(req.params.id);
-    if (affected === 0) return res.status(404).json({ error: true, message: 'Reservación no encontrada' });
-    res.json({ mensaje: 'Reservación eliminada' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: 'Error interno' });
-  }
-}
-
-module.exports = { list, create, remove };
+module.exports = { list, create};

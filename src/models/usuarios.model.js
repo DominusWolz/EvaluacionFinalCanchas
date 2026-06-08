@@ -10,4 +10,18 @@ async function getById(id) {
   return rows[0];
 }
 
-module.exports = { getAll, getById };
+async function getByEmail(email) {
+  const [rows] = await db.query('SELECT * FROM Usuario WHERE email = ?', [email]);
+  return rows[0];
+}
+
+async function create({ nombre, email, contrasena, telefono }) {
+  const [result] = await db.query(
+    'INSERT INTO Usuario (nombre, email, contrasena, telefono) VALUES (?, ?, ?, ?)',
+    [nombre, email, contrasena, telefono || null]
+  );
+  const id = result.insertId;
+  return getById(id);
+}
+
+module.exports = { getAll, getById, getByEmail, create };
