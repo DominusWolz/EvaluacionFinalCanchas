@@ -28,12 +28,12 @@ async function apiFetch(path, opts = {}) {
   try {
     const res = await fetch(url, fetchOpts);
     if (res.status === 401) {
-      // sesión inválida: limpiar y redirigir a login
-      setToken(null);
-      localStorage.removeItem('user');
-      window.location.href = '/login';
-      return Promise.reject({ status: 401, message: 'No autorizado' });
-    }
+  // limpiar token/usuario pero NO forzar redirección global
+  setToken(null);
+  localStorage.removeItem('user');
+  // devolver rechazo para que el componente decida qué hacer
+  return Promise.reject({ status: 401, message: 'Credenciales incorrectas' });
+}
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
       const data = await res.json();

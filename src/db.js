@@ -1,9 +1,12 @@
+// src/db.js
 const mysql = require('mysql2/promise');
 require('dotenv').config();
 
+// Si falta DATABASE_URL, no abortamos; exportamos null para pruebas locales
 if (!process.env.DATABASE_URL) {
-  console.error('Falta DATABASE_URL en .env');
-  process.exit(1);
+  console.warn('ADVERTENCIA: DATABASE_URL no definida. Inicialización de BD omitida (modo prueba).');
+  module.exports = null;
+  return;
 }
 
 // DATABASE_URL ejemplo: mysql://user:pass@host:3306/dbname

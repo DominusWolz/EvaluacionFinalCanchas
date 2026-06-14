@@ -1,59 +1,104 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { setToken } from '../api';
+// client/src/pages/Login.jsx
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { apiFetch } from '../api';
+import Header from '../components/Header';
 
 export default function Login() {
-  const [form, setForm] = useState({ email: '', contrasena: '' });
-  const [error, setError] = useState(null);
+  const [email, setEmail] = useState('');
+  const [contrasena, setContrasena] = useState('');
   const [loading, setLoading] = useState(false);
+  const [msg, setMsg] = useState(null);
   const navigate = useNavigate();
-  const API = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+  // Limpia token viejo para pruebas (quita en producción si no quieres esto)
+  useEffect(() => {
+    // comentar la siguiente línea si quieres mantener sesión entre recargas
+    localStorage.removeItem('token');
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setError(null);
+    setMsg(null);
     setLoading(true);
+
     try {
-      const res = await fetch(`${API}/auth/login`, {
+      const res = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
+        body: JSON.stringify({ email, contrasena })
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.message || 'Credenciales inválidas');
-        setLoading(false);
+
+      // DEBUG: ver qué devuelve exactamente la API
+      console.log('login response:', res);
+
+      // Solo navegar si recibimos un token no vacío
+      if (res && typeof res === 'object' && res.token) {
+        localStorage.setItem('token', res.token);
+        navigate('/dashboard');
         return;
       }
-      setToken(data.token);
-      localStorage.setItem('user', JSON.stringify(data.user || {}));
-      navigate('/dashboard');
+
+      // Si la API devolvió un objeto con mensaje, mostrarlo
+      const message = res?.message || 'Credenciales incorrectas';
+      setMsg(message);
     } catch (err) {
-      setError('Error de conexión');
+      console.error('login error:', err);
+      // Si apiFetch lanza un objeto con .data o .message, usarlo
+      const message = err?.data?.message || err?.message || 'Error al iniciar sesión';
+      setMsg(message);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="login-card" role="main">
-      <h2>Iniciar sesión</h2>
-      <p style={{ color: 'var(--muted)', marginTop: 6, marginBottom: 12 }}>Accede con tu correo y contraseña</p>
-      {error && <div style={{ color: 'var(--danger)', marginBottom: 12 }}>{error}</div>}
-      <form onSubmit={handleSubmit}>
-        <div className="form-row">
-          <label>Email</label>
-          <input type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required />
-        </div>
-        <div className="form-row">
-          <label>Contraseña</label>
-          <input type="password" value={form.contrasena} onChange={e => setForm({ ...form, contrasena: e.target.value })} required />
-        </div>
-        <div className="form-actions">
-          <button type="submit" className="btn primary" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
-          <button type="button" className="btn ghost" onClick={() => { setForm({ email: '', contrasena: '' }); setError(null); }}>Limpiar</button>
-        </div>
-      </form>
+    <div className="app-container">
+      <Header />
+      <div className="app-main" style={{ maxWidth: 420, margin: '40px auto' }}>
+        <h2>Iniciar sesión</h2>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: 8 }}>
+            <input
+              type="email"
+              placeholder="Correo electrónico"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              required
+              style={{ width: '100%', padding: 8 }}
+            />
+          </div>
+
+          <div style={{ marginBottom: 8 }}>
+            <input
+              type="password"
+              placeholder="Contraseña"
+              value={contrasena}
+              onChange={e => setContrasena(e.target.value)}
+              required
+              style={{ width: '100%', padding: 8 }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button type="submit" disabled={loading}>
+              {loading ? 'Ingresando...' : 'Iniciar sesión'}
+            </button>
+
+            <button type="button" onClick={() => navigate('/')} style={{ marginLeft: 8 }}>
+              Volver
+            </button>
+          </div>
+
+          <div style={{ marginTop: 10 }}>
+            <Link to="/forgot-password" style={{ color: '#007bff', textDecoration: 'underline' }}>
+              ¿Olvidaste tu contraseña?
+            </Link>
+          </div>
+        </form>
+
+        {msg && <div style={{ marginTop: 12, color: 'crimson' }}>{msg}</div>}
+      </div>
     </div>
   );
 }

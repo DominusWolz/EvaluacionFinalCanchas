@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import CanchasCrud from './pages/CanchasCrud';
 import ReservacionesCrud from './pages/ReservacionesCrud';
 import ProtectedRoute from './components/ProtectedRoute';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 export default function App() {
   return (
@@ -34,6 +36,9 @@ export default function App() {
 
         {/* fallback */}
         <Route path="*" element={<div style={{padding:24}}>Página no encontrada</div>} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
       </Routes>
     </BrowserRouter>
   );

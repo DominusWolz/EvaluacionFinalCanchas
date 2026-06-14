@@ -1,3 +1,4 @@
+// src/models/usuarios.model.js
 const db = require('../db');
 
 async function getAll() {
@@ -24,4 +25,9 @@ async function create({ nombre, email, contrasena, telefono }) {
   return getById(id);
 }
 
-module.exports = { getAll, getById, getByEmail, create };
+async function updatePassword(idUsuario, hashedPassword) {
+  const [result] = await db.query('UPDATE Usuario SET contrasena = ? WHERE idUsuario = ?', [hashedPassword, idUsuario]);
+  return result.affectedRows;
+}
+
+module.exports = { getAll, getById, getByEmail, create, updatePassword };
