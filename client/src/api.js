@@ -16,42 +16,63 @@ async function apiFetch(path, opts = {}) {
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  // Only set Content-Type when there is a body and it's not FormData
   if (opts.body !== undefined && !(opts.body instanceof FormData) && !headers['Content-Type']) {
     headers['Content-Type'] = 'application/json';
   }
 
   const fetchOpts = { ...opts, headers };
-  // ensure we don't pass undefined body to fetch
   if (fetchOpts.body === undefined) delete fetchOpts.body;
+
+  // helper: parse JSON safely
+  async function parseJsonSafe(res) {
+    const text = await res.text();
+    try { return text ? JSON.parse(text) : null; } catch { return text; }
+  }
 
   try {
     const res = await fetch(url, fetchOpts);
+
+    // 401: limpiar sesión y devolver error consistente
     if (res.status === 401) {
-  // limpiar token/usuario pero NO forzar redirección global
-  setToken(null);
-  localStorage.removeItem('user');
-  // devolver rechazo para que el componente decida qué hacer
-  return Promise.reject({ status: 401, message: 'Credenciales incorrectas' });
-}
+      setToken(null);
+      localStorage.removeItem('user');
+      const data = await parseJsonSafe(res);
+      const err = new Error(data?.message || 'Credenciales incorrectas');
+      err.status = 401;
+      err.data = data;
+      return Promise.reject(err);
+    }
+
     const contentType = res.headers.get('content-type') || '';
     if (contentType.includes('application/json')) {
-      const data = await res.json();
+      const data = await parseJsonSafe(res);
       if (!res.ok) {
         console.error('apiFetch error response', { url, status: res.status, data });
-        return Promise.reject({ status: res.status, data });
+        const err = new Error(data?.message || res.statusText || 'Error en la petición');
+        err.status = res.status;
+        err.data = data;
+        return Promise.reject(err);
       }
       return data;
     }
+
     if (!res.ok) {
       console.error('apiFetch non-json error', { url, status: res.status });
-      return Promise.reject({ status: res.status, data: null });
+      const err = new Error(res.statusText || 'Error en la petición');
+      err.status = res.status;
+      err.data = null;
+      return Promise.reject(err);
     }
+
     return res;
   } catch (err) {
     console.error('apiFetch network error', { url, err });
-    return Promise.reject({ status: 0, message: err.message || 'Network error' });
+    const e = new Error(err.message || 'Network error');
+    e.status = 0;
+    e.data = null;
+    return Promise.reject(e);
   }
 }
 
 export { apiFetch, setToken, getToken };
+export default apiFetch;

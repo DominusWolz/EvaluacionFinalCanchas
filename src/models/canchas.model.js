@@ -2,7 +2,8 @@
 const db = require('../db');
 
 async function getAll() {
-  const [rows] = await db.query('SELECT * FROM Canchas');
+  // Listado: excluir canchas marcadas como 'Inactivo'
+  const [rows] = await db.query('SELECT * FROM Canchas WHERE Estado IS NULL OR Estado != ?', ['Inactivo']);
   return rows;
 }
 
@@ -14,6 +15,7 @@ async function getById(id) {
 async function create({ nombreCancha, deporte, descripcion, precioHora, Estado }) {
   const query = 'INSERT INTO Canchas (nombreCancha, deporte, descripcion, precioHora, Estado) VALUES (?, ?, ?, ?, ?)';
   const [result] = await db.query(query, [nombreCancha, deporte, descripcion, precioHora, Estado]);
+  // devolver el id insertado para consistencia con el controlador actual
   return result.insertId;
 }
 
@@ -33,7 +35,8 @@ async function updateById(id, { nombreCancha, deporte, descripcion, precioHora, 
 }
 
 async function removeById(id) {
-  const [result] = await db.query('DELETE FROM Canchas WHERE idCancha = ?', [id]);
+  // Eliminación lógica: marcar Estado = 'Inactivo'
+  const [result] = await db.query('UPDATE Canchas SET Estado = ? WHERE idCancha = ?', ['Inactivo', id]);
   return result.affectedRows;
 }
 

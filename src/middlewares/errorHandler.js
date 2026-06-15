@@ -11,10 +11,12 @@ module.exports = function errorHandler(err, req, res, next) {
     payload.devMessage = err && err.message;
     payload.stack = err && err.stack;
     if (err && err.details) payload.details = err.details;
+    if (err && err.errors) payload.errors = err.errors; // <-- mantener errores si vienen
+  } else {
+    // en producción, si el error ya trae 'errors' (validación/conflicto), incluirlo también
+    if (err && err.errors) payload.errors = err.errors;
   }
 
-  // Log básico
   console.error(err);
-
   res.status(status).json(payload);
 };

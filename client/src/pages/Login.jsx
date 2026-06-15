@@ -1,7 +1,7 @@
 // client/src/pages/Login.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../api';
+import apiFetch, { setToken as setApiToken } from '../api';
 import Header from '../components/Header';
 
 export default function Login() {
@@ -10,12 +10,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState(null);
   const navigate = useNavigate();
-
-  // Limpia token viejo para pruebas (quita en producción si no quieres esto)
-  useEffect(() => {
-    // comentar la siguiente línea si quieres mantener sesión entre recargas
-    localStorage.removeItem('token');
-  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -31,9 +25,16 @@ export default function Login() {
       // DEBUG: ver qué devuelve exactamente la API
       console.log('login response:', res);
 
-      // Solo navegar si recibimos un token no vacío
+      // Guardar token y user en localStorage para que la app los use
       if (res && typeof res === 'object' && res.token) {
         localStorage.setItem('token', res.token);
+        // si exportaste setToken en api.js, úsalo para sincronizar headers
+        try { setApiToken(res.token); } catch (e) { /* noop */ }
+
+        if (res.user) {
+          localStorage.setItem('user', JSON.stringify(res.user));
+        }
+
         navigate('/dashboard');
         return;
       }
@@ -82,8 +83,13 @@ export default function Login() {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <button type="submit" disabled={loading}>
-              {loading ? 'Ingresando...' : 'Iniciar sesión'}
+              {loading ? 'Ingresando...' : 'Ingresar'}
             </button>
+
+            {/* Registrar a la derecha de Ingresar */}
+            <Link to="/register" style={{ marginLeft: 8, textDecoration: 'none' }}>
+              <button type="button">Registrar</button>
+            </Link>
 
             <button type="button" onClick={() => navigate('/')} style={{ marginLeft: 8 }}>
               Volver

@@ -1,0 +1,378 @@
+{
+  "info": {
+    "_postman_id": "be7f82da-0552-418b-8766-62ff344218c0",
+    "name": "ReservaCanchas - GEN-11",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección Postman para ReservaCanchas. Variables: baseUrl, token. Incluye flujo auth (register/login), CRUD canchas y casos 401, 409, 422."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api/v1",
+      "type": "string",
+      "description": "Base URL de la API (ajustar según entorno)"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "Token JWT obtenido en Login; usado en Authorization Bearer"
+    },
+    {
+      "key": "__randomInt",
+      "value": "1234",
+      "type": "string",
+      "description": "Valor auxiliar para nombres únicos (se puede editar o usar pre-request script)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Registro y login. El test del Login guarda el token en la variable de colección 'token'.",
+      "item": [
+        {
+          "name": "Register (opcional)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"testuser@example.com\",\n  \"contrasena\": \"Password123\",\n  \"nombre\": \"Usuario Prueba\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth","register"]
+            },
+            "description": "Registro de usuario (si tu API expone /auth/register). Ajusta campos según tu implementación."
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"pedro@example.com\",\n  \"contrasena\": \"miPass23\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth","login"]
+            },
+            "description": "Login: debe devolver un token JWT en la respuesta. El test guarda el token en la variable de colección 'token'."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  const token = json.token || json.accessToken || json.data?.token;",
+                  "  if (token) {",
+                  "    pm.collectionVariables.set('token', token);",
+                  "    console.log('Token guardado en variable de colección');",
+                  "    pm.test('Token presente', () => pm.expect(token).to.be.a('string'));",
+                  "  } else {",
+                  "    pm.test('Token no encontrado en respuesta', () => pm.expect(token).to.exist);",
+                  "  }",
+                  "} catch (e) {",
+                  "  pm.test('Response JSON parse error', () => { throw e; });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Forgot Password (Solicitar token de restablecimiento)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"pikachu234@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/forgot",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth","forgot"]
+            },
+            "description": "Solicitar restablecimiento de contraseña. Esperado: 200 y (según implementación) envío de email o token en respuesta."
+          },
+          "response": []
+        },
+        {
+          "name": "Reset Password (usar token recibido)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<TOKEN_RECIBIDO>\",\n  \"password\": \"nuevaPass123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/reset",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth","reset"]
+            },
+            "description": "Cambiar contraseña usando el token recibido por email. Reemplaza <TOKEN_RECIBIDO> por el token real."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Canchas",
+      "description": "CRUD para canchas. Incluye casos de validación (422) y conflicto (409).",
+      "item": [
+        {
+          "name": "Get All Canchas (protegido)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas"]
+            },
+            "description": "Obtener listado de canchas. Requiere token válido. Caso 401: si token inválido o ausente, la API debe devolver 401 Unauthorized."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Cancha by Id",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas","1"]
+            },
+            "description": "Obtener cancha por id. Ajusta el id según tus datos. Esperado: 200 o 404 si no existe."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Cancha (OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreCancha\": \"Cancha Test {{__randomInt}}\",\n  \"deporte\": \"Futbol\",\n  \"descripcion\": \"Cancha de prueba\",\n  \"precioHora\": 1500,\n  \"Estado\": \"Disponible\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas"]
+            },
+            "description": "Crear cancha válida. Esperado: 201 Created. Requiere token válido."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Cancha (422 validation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreCancha\": \"\",\n  \"precioHora\": \"abc\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas"]
+            },
+            "description": "Caso de validación: nombre vacío y precio no numérico. Esperado: 422 Unprocessable Entity con body { error:true, message:'Validación falló', errors:{ nombreCancha: '...', precioHora: '...' } }"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 422', () => pm.expect(pm.response.code).to.equal(422));",
+                  "try {",
+                  "  const json = pm.response.json();",
+                  "  pm.test('Tiene errors object', () => pm.expect(json).to.have.property('errors'));",
+                  "} catch (e) {",
+                  "  pm.test('Response JSON parse error', () => { throw e; });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Create Cancha (409 duplicate)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombreCancha\": \"CanchaDuplicada\",\n  \"precioHora\": 1000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas"]
+            },
+            "description": "Caso de conflicto: crear dos veces con mismo nombre. Primer request debe devolver 201; segundo request debe devolver 409 Conflict con body { error:true, message:'Nombre de cancha ya existe', errors:{ nombreCancha: '...' } }"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201 or 409 allowed in flow', () => pm.expect([201,409]).to.include(pm.response.code));",
+                  "if (pm.response.code === 409) {",
+                  "  const json = pm.response.json();",
+                  "  pm.test('Tiene errors.nombreCancha', () => pm.expect(json.errors).to.have.property('nombreCancha'));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Cancha (partial)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"descripcion\": \"Actualizada desde Postman\",\n  \"precioHora\": 2000\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/canchas/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas","1"]
+            },
+            "description": "Actualizar cancha (parcial). Esperado: 200 OK o 422 si datos inválidos."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Cancha",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas","1"]
+            },
+            "description": "Eliminar (marcar Inactivo). Esperado: 200 OK o 404 si no existe."
+          },
+          "response": []
+        },
+        {
+          "name": "Protected endpoint (401 test)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer INVALID_OR_EMPTY_TOKEN" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/canchas",
+              "host": ["{{baseUrl}}"],
+              "path": ["canchas"]
+            },
+            "description": "Prueba 401: enviar token inválido o vacío. Esperado: 401 Unauthorized y mensaje claro en body."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 401', () => pm.expect(pm.response.code).to.equal(401));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuarios (aux)",
+      "item": [
+        {
+          "name": "Get Usuario por ID (ejemplo)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/usuarios/2",
+              "host": ["{{baseUrl}}"],
+              "path": ["usuarios","2"]
+            },
+            "description": "Obtener usuario por id. Ajusta el id según tu BD."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Reservas (ejemplo)",
+      "item": [
+        {
+          "name": "Lista Reservas (protegido)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/reservaciones",
+              "host": ["{{baseUrl}}"],
+              "path": ["reservaciones"]
+            },
+            "description": "Listado de reservas. Requiere token válido."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

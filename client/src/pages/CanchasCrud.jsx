@@ -1,53 +1,192 @@
 // client/src/pages/CanchasCrud.jsx
-import React, { useEffect, useState } from 'react';
-import { apiFetch } from '../api';
+import React, { useEffect, useState, useRef } from 'react';
+import apiFetch from '../api';
 import Header from '../components/Header';
+
+function formatPrice(value) {
+  if (value === null || value === undefined || value === '') return '';
+  const n = Number(value);
+  if (Number.isNaN(n)) return value;
+  return n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function CanchasCrud() {
   const [canchas, setCanchas] = useState([]);
-  const [form, setForm] = useState({ nombreCancha:'', deporte:'Futbol', descripcion:'', precioHora:0, Estado:'Disponible' });
+  const [form, setForm] = useState({
+    nombreCancha: '',
+    deporte: 'Futbol',
+    descripcion: '',
+    precioHora: '',
+    Estado: 'Disponible'
+  });
   const [editing, setEditing] = useState(null);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(null);
+  const firstErrorRef = useRef(null);
+
+  // parse price input: return '' if invalid, number if valid
+  function parsePriceInput(val) {
+    if (val === '' || val === null || val === undefined) return '';
+    const normalized = String(val).replace(/\s/g, '').replace(',', '.');
+    const n = parseFloat(normalized);
+    return Number.isFinite(n) ? n : '';
+  }
 
   async function load() {
+    setError(null);
+    setFieldErrors({});
     try {
       const data = await apiFetch('/canchas', { method: 'GET' });
-      setCanchas(data);
+      setCanchas(Array.isArray(data) ? data : []);
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Error');
+      const msg = err?.data?.message || err?.message || 'Error';
+      setError(msg);
+      if (err?.data?.errors && typeof err.data.errors === 'object') {
+        setFieldErrors(err.data.errors);
+      }
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+  }, []);
+
+  // focus first field error
+  useEffect(() => {
+    const keys = Object.keys(fieldErrors);
+    if (keys.length === 0) return;
+    setTimeout(() => {
+      if (firstErrorRef.current) firstErrorRef.current.focus();
+    }, 50);
+  }, [fieldErrors]);
+
+  // auto-hide success
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(() => setSuccess(null), 3000);
+    return () => clearTimeout(t);
+  }, [success]);
 
   async function handleSave(e) {
     e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setFieldErrors({});
+
+    // client-side validation: require nombreCancha and precioHora
+    const clientErrors = {};
+    if (!form.nombreCancha || String(form.nombreCancha).trim() === '') {
+      clientErrors.nombreCancha = 'nombreCancha es obligatorio';
+    }
+
+    const parsedPrice = parsePriceInput(form.precioHora);
+    if (form.precioHora === '' || form.precioHora === null || form.precioHora === undefined) {
+      clientErrors.precioHora = 'precioHora es obligatorio';
+    } else if (parsedPrice === '') {
+      clientErrors.precioHora = 'precioHora debe ser numérico';
+    } else if (parsedPrice < 0) {
+      clientErrors.precioHora = 'precioHora debe ser mayor o igual a 0';
+    }
+
+    if (Object.keys(clientErrors).length > 0) {
+      setFieldErrors(clientErrors);
+      setError('Corrige los errores en el formulario');
+      if (clientErrors.nombreCancha && firstErrorRef?.current) firstErrorRef.current.focus();
+      return;
+    }
+
+    setLoading(true);
     try {
+      const payload = {
+        nombreCancha: form.nombreCancha,
+        deporte: form.deporte,
+        descripcion: form.descripcion,
+        precioHora: parsedPrice,
+        Estado: form.Estado || 'Disponible'
+      };
+
       if (editing) {
-        await apiFetch(`/canchas/${editing}`, { method: 'PUT', body: JSON.stringify(form) });
+        await apiFetch(`/canchas/${editing}`, { method: 'PUT', body: JSON.stringify(payload) });
+        setSuccess('Cancha actualizada');
       } else {
-        await apiFetch('/canchas', { method: 'POST', body: JSON.stringify(form) });
+        await apiFetch('/canchas', { method: 'POST', body: JSON.stringify(payload) });
+        setSuccess('Cancha creada');
       }
-      setForm({ nombreCancha:'', deporte:'Futbol', descripcion:'', precioHora:0, Estado:'Disponible' });
+
+      setForm({ nombreCancha: '', deporte: 'Futbol', descripcion: '', precioHora: '', Estado: 'Disponible' });
       setEditing(null);
-      load();
+      await load();
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Error');
+      console.error('handleSave error', err);
+      const status = err?.status || (err?.data && err.data.status) || 0;
+      const data = err?.data || null;
+
+      // if backend returned structured errors
+      if (data && data.errors && typeof data.errors === 'object') {
+        setFieldErrors(data.errors);
+        setError('Corrige los errores en el formulario');
+        if (data.errors.nombreCancha && firstErrorRef?.current) firstErrorRef.current.focus();
+      } else if (status === 409) {
+        // conflict (duplicate)
+        const msg = data?.message || err?.message || 'Conflicto';
+        setFieldErrors({ nombreCancha: msg });
+        setError('Corrige los errores en el formulario');
+        if (firstErrorRef?.current) firstErrorRef.current.focus();
+      } else if (status === 422 || status === 400) {
+        const msg = data?.message || err?.message || 'Validación falló';
+        const m = String(msg).match(/^([a-zA-Z0-9_]+)\s*[:\-\s]\s*(.+)$/);
+        if (m) {
+          const field = m[1];
+          const rest = m[2];
+          setFieldErrors({ [field]: rest });
+          if (field === 'nombreCancha' && firstErrorRef?.current) firstErrorRef.current.focus();
+        } else {
+          setError(msg);
+        }
+      } else {
+        const msg = data?.message || err?.message || 'Error inesperado';
+        setError(msg);
+      }
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleEdit(c) {
+  function handleEdit(c) {
     setEditing(c.idCancha);
-    setForm({ nombreCancha:c.nombreCancha, deporte:c.deporte, descripcion:c.descripcion, precioHora:c.precioHora, Estado:c.Estado });
+    setForm({
+      nombreCancha: c.nombreCancha || '',
+      deporte: c.deporte || 'Futbol',
+      descripcion: c.descripcion || '',
+      precioHora: c.precioHora ? String(c.precioHora) : '',
+      Estado: c.Estado || 'Disponible'
+    });
+    setError(null);
+    setSuccess(null);
+    setFieldErrors({});
+    firstErrorRef.current = null;
   }
 
   async function handleDelete(id) {
     if (!confirm('Eliminar cancha?')) return;
+    setError(null);
+    setSuccess(null);
+    setFieldErrors({});
+    setLoading(true);
     try {
       await apiFetch(`/canchas/${id}`, { method: 'DELETE' });
-      load();
+      setSuccess('Cancha eliminada');
+      await load();
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Error');
+      console.error('DELETE error', err);
+      const data = err?.data || null;
+      const msg = data?.message || err?.message || 'Error';
+      setError(msg);
+      if (data?.errors && typeof data.errors === 'object') setFieldErrors(data.errors);
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -56,30 +195,126 @@ export default function CanchasCrud() {
       <Header />
       <div className="app-main">
         <h2>Canchas</h2>
-        {error && <div style={{color:'crimson'}}>{error}</div>}
-        <form onSubmit={handleSave} style={{maxWidth:520, marginBottom:20}}>
-          <input placeholder="Nombre" value={form.nombreCancha} onChange={e=>setForm({...form,nombreCancha:e.target.value})} required />
-          <input placeholder="Deporte" value={form.deporte} onChange={e=>setForm({...form,deporte:e.target.value})} />
-          <input placeholder="Precio Hora" type="number" value={form.precioHora} onChange={e=>setForm({...form,precioHora:parseFloat(e.target.value)})} />
-          <input placeholder="Estado" value={form.Estado} onChange={e=>setForm({...form,Estado:e.target.value})} />
-          <textarea placeholder="Descripcion" value={form.descripcion} onChange={e=>setForm({...form,descripcion:e.target.value})} />
-          <button type="submit">{editing ? 'Actualizar' : 'Crear'}</button>
-          {editing && <button type="button" onClick={()=>{setEditing(null); setForm({nombreCancha:'',deporte:'Futbol',descripcion:'',precioHora:0,Estado:'Disponible'})}}>Cancelar</button>}
+
+        {Object.keys(fieldErrors).length > 0 ? (
+          <div className="msg error" role="alert">Corrige los errores en el formulario</div>
+        ) : (
+          error && <div className="msg error" role="alert">{error}</div>
+        )}
+
+        {success && <div className="msg success" role="status">{success}</div>}
+
+        <form onSubmit={handleSave} className="cancha-form" noValidate>
+          <div className="form-row">
+            <div style={{ flex: 1 }}>
+              <input
+                placeholder="Nombre"
+                value={form.nombreCancha}
+                onChange={e => setForm({ ...form, nombreCancha: e.target.value })}
+                required
+                className="input"
+                aria-invalid={!!fieldErrors.nombreCancha}
+                aria-describedby={fieldErrors.nombreCancha ? 'err-nombre' : undefined}
+                ref={el => { if (fieldErrors.nombreCancha && !firstErrorRef.current) firstErrorRef.current = el; }}
+              />
+              {fieldErrors.nombreCancha && <div id="err-nombre" className="field-error" role="alert">{fieldErrors.nombreCancha}</div>}
+            </div>
+
+            <div style={{ minWidth: 160 }}>
+              <input
+                placeholder="Deporte"
+                value={form.deporte}
+                onChange={e => setForm({ ...form, deporte: e.target.value })}
+                className="input"
+                aria-invalid={!!fieldErrors.deporte}
+                aria-describedby={fieldErrors.deporte ? 'err-deporte' : undefined}
+              />
+              {fieldErrors.deporte && <div id="err-deporte" className="field-error" role="alert">{fieldErrors.deporte}</div>}
+            </div>
+
+            <div style={{ minWidth: 140 }}>
+              <input
+                placeholder="Precio Hora"
+                value={form.precioHora}
+                onChange={e => setForm({ ...form, precioHora: e.target.value })}
+                inputMode="decimal"
+                pattern="[0-9]*[.,]?[0-9]*"
+                className="input price-input"
+                aria-invalid={!!fieldErrors.precioHora}
+                aria-describedby={fieldErrors.precioHora ? 'err-precio' : undefined}
+              />
+              {fieldErrors.precioHora && <div id="err-precio" className="field-error" role="alert">{fieldErrors.precioHora}</div>}
+            </div>
+
+            <div style={{ minWidth: 140 }}>
+              <input
+                placeholder="Estado"
+                value={form.Estado}
+                onChange={e => setForm({ ...form, Estado: e.target.value })}
+                className="input"
+                aria-invalid={!!fieldErrors.Estado}
+                aria-describedby={fieldErrors.Estado ? 'err-estado' : undefined}
+              />
+              {fieldErrors.Estado && <div id="err-estado" className="field-error" role="alert">{fieldErrors.Estado}</div>}
+            </div>
+          </div>
+
+          <textarea
+            placeholder="Descripcion"
+            value={form.descripcion}
+            onChange={e => setForm({ ...form, descripcion: e.target.value })}
+            className="textarea"
+            aria-invalid={!!fieldErrors.descripcion}
+            aria-describedby={fieldErrors.descripcion ? 'err-desc' : undefined}
+          />
+          {fieldErrors.descripcion && <div id="err-desc" className="field-error" role="alert">{fieldErrors.descripcion}</div>}
+
+          <div className="form-actions" style={{ marginTop: 12 }}>
+            <button type="submit" disabled={loading} className="btn primary">{editing ? 'Actualizar' : 'Crear'}</button>
+            {editing && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => {
+                  setEditing(null);
+                  setForm({ nombreCancha: '', deporte: 'Futbol', descripcion: '', precioHora: '', Estado: 'Disponible' });
+                  setError(null);
+                  setSuccess(null);
+                  setFieldErrors({});
+                  firstErrorRef.current = null;
+                }}
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
         </form>
 
-        <table className="table">
-          <thead><tr><th>ID</th><th>Nombre</th><th>Deporte</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead>
+        <table className="table" aria-live="polite">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nombre / Descripción</th>
+              <th>Deporte</th>
+              <th>Precio</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
           <tbody>
             {canchas.map(c => (
               <tr key={c.idCancha}>
                 <td>{c.idCancha}</td>
-                <td>{c.nombreCancha}</td>
+                <td className="name-col">
+                  <div className="name">{c.nombreCancha}</div>
+                  {c.descripcion && <div className="desc">{c.descripcion}</div>}
+                </td>
                 <td>{c.deporte}</td>
-                <td>{c.precioHora}</td>
+                <td>{formatPrice(c.precioHora)}</td>
                 <td>{c.Estado}</td>
                 <td>
-                  <button onClick={()=>handleEdit(c)}>Editar</button>
-                  <button onClick={()=>handleDelete(c.idCancha)}>Eliminar</button>
+                  <button type="button" onClick={() => handleEdit(c)} className="btn small">Editar</button>
+                  <button type="button" onClick={() => handleDelete(c.idCancha)} className="btn small danger">Eliminar</button>
                 </td>
               </tr>
             ))}

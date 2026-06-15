@@ -4,30 +4,112 @@ import { Link, useNavigate } from 'react-router-dom';
 
 export default function Header() {
   const navigate = useNavigate();
-  function logout() {
+
+  // leer user desde localStorage
+  let user = null;
+  try {
+    user = JSON.parse(localStorage.getItem('user') || 'null');
+  } catch (e) {
+    user = null;
+  }
+
+  function handleLogout() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     navigate('/login');
   }
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+  const headerStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '12px 20px',
+    background: 'linear-gradient(90deg, #0f172a 0%, #0b3d91 40%, #0b6fb3 100%)',
+    color: '#fff',
+    boxShadow: '0 6px 18px rgba(11, 47, 91, 0.18)',
+    position: 'sticky',
+    top: 0,
+    zIndex: 50
+  };
+
+  const brandStyle = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12,
+    color: '#fff',
+    textDecoration: 'none'
+  };
+
+  const navLinkStyle = {
+    color: 'rgba(255,255,255,0.9)',
+    textDecoration: 'none',
+    padding: '6px 8px',
+    borderRadius: 6,
+    fontSize: 14
+  };
+
+  const rightStyle = { display: 'flex', gap: 8, alignItems: 'center' };
+
+  const btnStyle = {
+    padding: '6px 12px',
+    borderRadius: 8,
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: 600
+  };
+
+  const primaryBtn = {
+    ...btnStyle,
+    background: 'linear-gradient(180deg,#ffd54a,#ffb300)',
+    color: '#0b2a4a',
+    boxShadow: '0 6px 12px rgba(255,179,0,0.18)'
+  };
 
   return (
-    <header className="app-header">
-      <div className="brand">
-        <div className="logo">AC</div>
-        <div>
-          <div className="title">App Canchas</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)' }}>Gestión de reservas</div>
-        </div>
+    <header style={headerStyle}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <Link to="/dashboard" style={brandStyle}>
+          <div style={{
+            width: 44,
+            height: 44,
+            borderRadius: 10,
+            background: 'radial-gradient(circle at 30% 30%, #fff6d6, #ffd54a 40%, #ffb300 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#0b2a4a',
+            fontWeight: 800,
+            boxShadow: '0 6px 14px rgba(11,47,91,0.25)'
+          }}>
+            AC
+          </div>
+          <div style={{ marginLeft: 6 }}>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>App Canchas</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>Gestión de reservas</div>
+          </div>
+        </Link>
+
+        <nav style={{ display: 'flex', gap: 8, marginLeft: 12 }}>
+          <Link to="/dashboard" style={navLinkStyle}>Dashboard</Link>
+          <Link to="/canchas" style={navLinkStyle}>Cancha</Link>
+          <Link to="/reservaciones" style={navLinkStyle}>Reservas</Link>
+        </nav>
       </div>
 
-      <nav className="header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-        <Link to="/dashboard"><button>Dashboard</button></Link>
-        <Link to="/canchas"><button>Cancha</button></Link>
-        <Link to="/reservaciones"><button>Reservas</button></Link>
-        <span style={{ marginLeft: 8, fontSize: 13, color: 'var(--muted)' }}>{user.nombre || ''}</span>
-        <button className="primary" onClick={logout}>Cerrar sesión</button>
-      </nav>
+      <div style={rightStyle}>
+        {user && user.email ? (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ textAlign: 'right', marginRight: 6 }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{user.nombre || user.email}</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>{user.email}</div>
+            </div>
+            <button onClick={handleLogout} style={primaryBtn}>Cerrar sesión</button>
+          </div>
+        ) : (
+          // Usuario no autenticado: no mostrar botones en la esquina superior derecha
+          null
+        )}
+      </div>
     </header>
   );
 }

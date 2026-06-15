@@ -2,6 +2,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import Register from './pages/Register'; // <-- Asegúrate de importar
 import Dashboard from './pages/Dashboard';
 import CanchasCrud from './pages/CanchasCrud';
 import ReservacionesCrud from './pages/ReservacionesCrud';
@@ -15,6 +16,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} /> {/* <-- ruta añadida */}
 
         <Route path="/dashboard" element={
           <ProtectedRoute>
@@ -34,11 +36,11 @@ export default function App() {
           </ProtectedRoute>
         } />
 
-        {/* fallback */}
-        <Route path="*" element={<div style={{padding:24}}>Página no encontrada</div>} />
-
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+
+        {/* fallback */}
+        <Route path="*" element={<div style={{padding:24}}>Página no encontrada</div>} />
       </Routes>
     </BrowserRouter>
   );

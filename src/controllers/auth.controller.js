@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const PasswordReset = require('../models/passwordReset.model');
+const Joi = require('joi');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'REEMPLAZAR_POR_SECRETO';
 const JWT_EXPIRES_IN = '8h';
@@ -22,6 +23,49 @@ const RESET_EXP_MINUTES = parseResetMinutes(RESET_TOKEN_EXP);
 
 const sha256 = (s) => crypto.createHash('sha256').update(s).digest('hex');
 
+// Validation schema for register
+const registerSchema = Joi.object({
+  nombre: Joi.string().trim().min(2).max(120).required(),
+  email: Joi.string().email().required(),
+  contrasena: Joi.string().min(8).required(),
+  telefono: Joi.string().allow('', null)
+});
+
+async function register(req, res, next) {
+  try {
+    const { error, value } = registerSchema.validate(req.body, { abortEarly: false, convert: true });
+    if (error) {
+      const errors = {};
+      error.details.forEach(d => { errors[d.path[0]] = d.message; });
+      return res.status(422).json({ error: true, message: 'Validación falló', errors });
+    }
+
+    const { nombre, email, contrasena, telefono } = value;
+
+    // comprobar si email ya existe
+    const existing = await Usuarios.getByEmail(email);
+    if (existing) {
+      return res.status(409).json({ error: true, message: 'Email ya registrado', errors: { email: 'Email ya en uso' } });
+    }
+
+    // hashear contraseña
+    const hashed = await bcrypt.hash(contrasena, SALT_ROUNDS);
+
+    // crear usuario (Usuarios.create devuelve el usuario sin contraseña según tu modelo)
+    const user = await Usuarios.create({ nombre, email, contrasena: hashed, telefono });
+
+    // devolver sin contrasena
+    return res.status(201).json({
+      error: false,
+      message: 'Usuario creado',
+      user: { idUsuario: user.idUsuario, nombre: user.nombre, email: user.email, telefono: user.telefono }
+    });
+  } catch (err) {
+    console.error('auth.register error', err);
+    return next(err);
+  }
+}
+
 async function login(req, res, next) {
   try {
     const { email, contrasena } = req.body;
@@ -39,19 +83,21 @@ async function login(req, res, next) {
       return next({ status: 401, message: 'Credenciales inválidas', code: 'UNAUTHORIZED' });
     }
 
-    const payload = { userId: user.idUsuario };
+    // incluir email y nombre en el payload para que req.user tenga esos campos
+    const payload = { userId: user.idUsuario, email: user.email, nombre: user.nombre };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     return res.json({
       error: false,
       token,
-      user: { idUsuario: user.idUsuario, nombre: user.nombre, email: user.email }
+      user: { idUsuario: user.idUsuario, nombre: user.nombre, email: user.email, telefono: user.telefono }
     });
   } catch (err) {
     return next(err);
   }
 }
 
+// Forgot / Reset ya los tienes; los dejamos igual (si quieres los integro aquí, ya están en tu archivo)
 async function forgot(req, res, next) {
   try {
     const { email } = req.body;
@@ -109,4 +155,4 @@ async function reset(req, res, next) {
   }
 }
 
-module.exports = { login, forgot, reset };
+module.exports = { register, login, forgot, reset };
