@@ -2,8 +2,9 @@
 const db = require('../db');
 
 async function getAll() {
-  // Listado: excluir canchas marcadas como 'Inactivo'
-  const [rows] = await db.query('SELECT * FROM Canchas WHERE Estado IS NULL OR Estado != ?', ['Inactivo']);
+  // Retornamos TODAS las canchas (incluyendo las inactivas)
+  // para que el Administrador pueda verlas en el CRUD y reactivarlas.
+  const [rows] = await db.query('SELECT * FROM Canchas');
   return rows;
 }
 

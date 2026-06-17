@@ -2,43 +2,93 @@
 import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../api';
 import Header from '../components/Header';
-import dayjs from 'dayjs';
 
 export default function ReservacionesCrud() {
   const [canchas, setCanchas] = useState([]);
-  const [reservas, setReservas] = useState([]);
-  const [form, setForm] = useState({ idCancha:'', inicio:'', fin:'', precio_total:0 });
+  const [misReservas, setMisReservas] = useState([]);
+  
+  const today = new Date().toISOString().split('T')[0];
+  const [filtroFecha, setFiltroFecha] = useState(today);
+  const [filtroCancha, setFiltroCancha] = useState('');
+
+  const [formReserva, setFormReserva] = useState({
+    idCancha: '',
+    horaInicio: '10:00',
+    horaFin: '11:00'
+  });
+
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
 
-  async function loadCanchas() {
-    const data = await apiFetch('/canchas', { method: 'GET' });
-    setCanchas(data);
-  }
-  async function loadReservas() {
-    const data = await apiFetch('/reservaciones', { method: 'GET' });
-    setReservas(data);
-  }
-
-  useEffect(()=>{ loadCanchas(); loadReservas(); }, []);
-
-  async function handleCreate(e) {
-    e.preventDefault();
+  async function loadData() {
+    setLoading(true);
+    setError(null);
     try {
-      await apiFetch('/reservaciones', { method: 'POST', body: JSON.stringify(form) });
-      setForm({ idCancha:'', inicio:'', fin:'', precio_total:0 });
-      loadReservas();
+      const canchasData = await apiFetch('/canchas', { method: 'GET' });
+      setCanchas(Array.isArray(canchasData) ? canchasData : []);
+
+      const reservasData = await apiFetch('/reservaciones?mine=true', { method: 'GET' });
+      setMisReservas(Array.isArray(reservasData) ? reservasData : []);
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Error');
+      setError(err?.data?.message || err?.message || 'Error al cargar datos');
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function handleCancel(id) {
-    if (!confirm('Cancelar reserva?')) return;
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(() => setSuccess(null), 3500);
+    return () => clearTimeout(t);
+  }, [success]);
+
+  // CREAR RESERVA
+  async function handleReservar(e) {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (!formReserva.idCancha) return setError('Debes seleccionar una cancha');
+
+    const inicioISO = `${filtroFecha}T${formReserva.horaInicio}:00`;
+    const finISO = `${filtroFecha}T${formReserva.horaFin}:00`;
+    const canchaSeleccionada = canchas.find(c => String(c.idCancha) === String(formReserva.idCancha));
+    const precio = canchaSeleccionada ? canchaSeleccionada.precioHora : 0;
+
+    try {
+      await apiFetch('/reservaciones', {
+        method: 'POST',
+        body: JSON.stringify({
+          idCancha: formReserva.idCancha,
+          inicio: inicioISO,
+          fin: finISO,
+          precio_total: precio,
+          estado: 'Confirmada'
+        })
+      });
+      setSuccess('¡Reserva confirmada con éxito!');
+      setFormReserva({ idCancha: '', horaInicio: '10:00', horaFin: '11:00' });
+      loadData();
+    } catch (err) {
+      setError(err?.data?.message || err?.message || 'Error al reservar');
+    }
+  }
+
+  // CANCELAR / ELIMINAR RESERVA
+  async function handleCancelar(id) {
+    if (!window.confirm('¿Estás seguro de que deseas cancelar esta reserva?')) return;
+    setError(null);
     try {
       await apiFetch(`/reservaciones/${id}`, { method: 'DELETE' });
-      loadReservas();
+      setSuccess('Reserva cancelada correctamente');
+      loadData();
     } catch (err) {
-      setError(err?.data?.message || err?.message || 'Error');
+      setError(err?.data?.message || err?.message || 'Error al cancelar la reserva');
     }
   }
 
@@ -46,35 +96,82 @@ export default function ReservacionesCrud() {
     <div className="app-container">
       <Header />
       <div className="app-main">
-        <h2>Reservaciones</h2>
-        {error && <div style={{color:'crimson'}}>{error}</div>}
-        <form onSubmit={handleCreate} style={{maxWidth:520, marginBottom:20}}>
-          <select value={form.idCancha} onChange={e=>setForm({...form,idCancha:e.target.value})} required>
-            <option value="">Selecciona cancha</option>
-            {canchas.map(c=> <option key={c.idCancha} value={c.idCancha}>{c.nombreCancha}</option>)}
-          </select>
-          <input type="datetime-local" value={form.inicio} onChange={e=>setForm({...form,inicio:e.target.value})} required />
-          <input type="datetime-local" value={form.fin} onChange={e=>setForm({...form,fin:e.target.value})} required />
-          <input type="number" value={form.precio_total} onChange={e=>setForm({...form,precio_total:parseFloat(e.target.value)})} />
-          <button type="submit">Reservar</button>
-        </form>
+        <h2>Gestión de Reservas</h2>
+        {error && <div className="msg error" role="alert">{error}</div>}
+        {success && <div className="msg success" role="status">{success}</div>}
 
-        <h3>Mis Reservas</h3>
-        <table className="table">
-          <thead><tr><th>ID</th><th>Cancha</th><th>Inicio</th><th>Fin</th><th>Estado</th><th>Acciones</th></tr></thead>
-          <tbody>
-            {reservas.map(r=>(
-              <tr key={r.idReserva}>
-                <td>{r.idReserva}</td>
-                <td>{r.idCancha}</td>
-                <td>{dayjs(r.inicio).format('YYYY-MM-DD HH:mm')}</td>
-                <td>{dayjs(r.fin).format('YYYY-MM-DD HH:mm')}</td>
-                <td>{r.estado}</td>
-                <td><button onClick={()=>handleCancel(r.idReserva)}>Cancelar</button></td>
+        <div className="cancha-form" style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+          {/* Formulario de Reserva */}
+          <div style={{ flex: '1', minWidth: '300px' }}>
+            <h3 style={{ marginTop: 0, color: 'var(--success)' }}>Nueva Reserva</h3>
+            <form onSubmit={handleReservar}>
+              <div className="form-row">
+                <div style={{ flex: 1 }}>
+                  <label>Fecha</label>
+                  <input type="date" className="input" value={filtroFecha} min={today} onChange={(e) => setFiltroFecha(e.target.value)} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label>Cancha</label>
+                  <select className="input" required value={formReserva.idCancha} onChange={(e) => setFormReserva({...formReserva, idCancha: e.target.value})}>
+                    <option value="" disabled>Seleccione...</option>
+                    {canchas.map(c => (
+                      <option key={c.idCancha} value={c.idCancha}>{c.nombreCancha} (${Number(c.precioHora).toLocaleString()})</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="form-row">
+                <div style={{ flex: 1 }}>
+                  <label>Hora Inicio</label>
+                  <input type="time" className="input" required value={formReserva.horaInicio} onChange={(e) => setFormReserva({...formReserva, horaInicio: e.target.value})} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label>Hora Fin</label>
+                  <input type="time" className="input" required value={formReserva.horaFin} onChange={(e) => setFormReserva({...formReserva, horaFin: e.target.value})} />
+                </div>
+              </div>
+              <button type="submit" className="btn primary" style={{ width: '100%', marginTop: '10px' }}>Agendar Reserva</button>
+            </form>
+          </div>
+        </div>
+
+        {/* Tabla de Reservas */}
+        <h3 style={{ marginTop: '32px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Mi Historial de Reservas</h3>
+        {loading ? <div className="empty">Cargando...</div> : misReservas.length === 0 ? (
+          <div className="empty">No tienes reservaciones registradas.</div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>N° Reserva</th>
+                <th>Cancha</th>
+                <th>Fecha y Hora</th>
+                <th>Precio</th>
+                <th>Acciones</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {misReservas.map(r => {
+                const cancha = canchas.find(c => c.idCancha === r.idCancha);
+                const nombreCancha = cancha ? cancha.nombreCancha : `Cancha ${r.idCancha}`;
+                const fechaFormat = new Date(r.inicio).toLocaleString('es-CL', { dateStyle: 'medium', timeStyle: 'short' });
+                const finFormat = new Date(r.fin).toLocaleTimeString('es-CL', { timeStyle: 'short' });
+
+                return (
+                  <tr key={r.idReserva || r.id}>
+                    <td>#{r.idReserva || r.id}</td>
+                    <td className="name-col"><div className="name">{nombreCancha}</div></td>
+                    <td>{fechaFormat} a {finFormat}</td>
+                    <td>${Number(r.precio_total || 0).toLocaleString()}</td>
+                    <td>
+                      <button type="button" onClick={() => handleCancelar(r.idReserva || r.id)} className="btn small danger">Cancelar</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

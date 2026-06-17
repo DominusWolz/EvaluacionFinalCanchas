@@ -2,47 +2,43 @@
 const Canchas = require('../models/canchas.model');
 const Joi = require('joi');
 
-// esquema de validación
 const canchaSchema = Joi.object({
   nombreCancha: Joi.string().trim().min(2).max(120).required().messages({
-    'string.empty': 'nombreCancha es obligatorio',
-    'any.required': 'nombreCancha es obligatorio',
-    'string.min': 'nombreCancha debe tener al menos 2 caracteres',
-    'string.max': 'nombreCancha debe tener como máximo 120 caracteres'
+    'string.empty': 'El nombre de la cancha es obligatorio',
+    'any.required': 'El nombre de la cancha es obligatorio',
+    'string.min': 'El nombre debe tener al menos 2 caracteres',
+    'string.max': 'El nombre es demasiado largo'
   }),
   deporte: Joi.string().trim().max(50).optional().allow(''),
   descripcion: Joi.string().max(500).optional().allow(''),
   precioHora: Joi.number().min(0).precision(2).required().messages({
-    'number.base': 'precioHora debe ser numérico',
-    'number.min': 'precioHora debe ser mayor o igual a 0',
-    'any.required': 'precioHora es obligatorio'
+    'number.base': 'Ingresa un precio válido (solo números)',
+    'number.min': 'El precio no puede ser negativo',
+    'any.required': 'El precio por hora es obligatorio'
   }),
   Estado: Joi.string().valid('Disponible','Reservada','Inactivo').optional().allow(null,'')
 });
 
-async function list(req, res) {
+async function list(req, res, next) {
   try {
     const rows = await Canchas.getAll();
     res.json(rows);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: 'Error interno' });
+    next(err); // Se va al errorHandler central
   }
 }
 
-async function getById(req, res) {
+async function getById(req, res, next) {
   try {
     const cancha = await Canchas.getById(req.params.id);
-    if (!cancha) return res.status(404).json({ error: true, message: 'Cancha no encontrada' });
+    if (!cancha) return res.status(404).json({ error: true, message: 'Cancha no encontrada', code: 'NOT_FOUND' });
     res.json(cancha);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: true, message: 'Error interno' });
+    next(err);
   }
 }
 
-async function create(req, res) {
-  // validar entrada
+async function create(req, res, next) {
   const { error, value } = canchaSchema.validate(req.body, { abortEarly: false, convert: true });
   if (error) {
     const errors = {};
@@ -64,24 +60,17 @@ async function create(req, res) {
     });
     return res.status(201).json({ error: false, message: 'Cancha creada', id });
   } catch (err) {
-    console.error(err);
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        error: true,
-        message: 'Nombre de cancha ya existe',
-        errors: { nombreCancha: 'Ya existe una cancha con ese nombre' }
-      });
-    }
-    return res.status(500).json({ error: true, message: 'Error interno' });
+    // Si hay un duplicado (ER_DUP_ENTRY), el middleware lo transforma en 409
+    // y tu frontend CanchasCrud.jsx (línea 116) lo mapeará a 'nombreCancha'
+    next(err); 
   }
 }
 
-// src/controllers/canchas.controller.js (solo las funciones update y remove)
-async function update(req, res) {
+async function update(req, res, next) {
   const id = req.params.id;
-  // validar entrada parcial: permitir sólo los campos presentes
   const partialSchema = canchaSchema.fork(Object.keys(canchaSchema.describe().keys), (s) => s.optional());
   const { error, value } = partialSchema.validate(req.body, { abortEarly: false, convert: true });
+  
   if (error) {
     const errors = {};
     error.details.forEach(d => {
@@ -93,33 +82,22 @@ async function update(req, res) {
 
   try {
     const affected = await Canchas.updateById(id, value);
-    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada' });
+    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada', code: 'NOT_FOUND' });
     return res.json({ error: false, message: 'Cancha actualizada' });
   } catch (err) {
-    console.error('canchas.update error:', err);
-    if (err.code === 'ER_DUP_ENTRY') {
-      return res.status(409).json({
-        error: true,
-        message: 'Nombre de cancha ya existe',
-        errors: { nombreCancha: 'Ya existe una cancha con ese nombre' }
-      });
-    }
-    const detail = err.sqlMessage || err.message || String(err);
-    return res.status(500).json({ error: true, message: 'Error interno', detail });
+    next(err);
   }
 }
 
-async function remove(req, res) {
-  console.log('DELETE /api/v1/canchas/:id - params:', req.params, 'user:', req.user);
+async function remove(req, res, next) {
   const id = req.params.id;
   try {
     const affected = await Canchas.removeById(id);
-    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada' });
+    if (!affected) return res.status(404).json({ error: true, message: 'Cancha no encontrada', code: 'NOT_FOUND' });
     return res.json({ mensaje: 'Cancha eliminada' });
   } catch (err) {
-    console.error('canchas.remove error:', err);
-    const detail = err.sqlMessage || err.message || String(err);
-    return res.status(500).json({ error: true, message: 'Error interno', detail });
+    next(err);
   }
 }
+
 module.exports = { list, getById, create, update, remove };

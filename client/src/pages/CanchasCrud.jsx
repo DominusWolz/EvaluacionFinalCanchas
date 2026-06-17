@@ -11,6 +11,10 @@ function formatPrice(value) {
 }
 
 export default function CanchasCrud() {
+  const userStr = localStorage.getItem('user');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = currentUser?.email === 'pikachu234@gmail.com';
+
   const [canchas, setCanchas] = useState([]);
   const [form, setForm] = useState({
     nombreCancha: '',
@@ -26,7 +30,6 @@ export default function CanchasCrud() {
   const [success, setSuccess] = useState(null);
   const firstErrorRef = useRef(null);
 
-  // parse price input: return '' if invalid, number if valid
   function parsePriceInput(val) {
     if (val === '' || val === null || val === undefined) return '';
     const normalized = String(val).replace(/\s/g, '').replace(',', '.');
@@ -53,7 +56,6 @@ export default function CanchasCrud() {
     load();
   }, []);
 
-  // focus first field error
   useEffect(() => {
     const keys = Object.keys(fieldErrors);
     if (keys.length === 0) return;
@@ -62,7 +64,6 @@ export default function CanchasCrud() {
     }, 50);
   }, [fieldErrors]);
 
-  // auto-hide success
   useEffect(() => {
     if (!success) return;
     const t = setTimeout(() => setSuccess(null), 3000);
@@ -75,19 +76,18 @@ export default function CanchasCrud() {
     setSuccess(null);
     setFieldErrors({});
 
-    // client-side validation: require nombreCancha and precioHora
     const clientErrors = {};
     if (!form.nombreCancha || String(form.nombreCancha).trim() === '') {
-      clientErrors.nombreCancha = 'nombreCancha es obligatorio';
+      clientErrors.nombreCancha = 'nombre de la cancha es obligatorio';
     }
 
     const parsedPrice = parsePriceInput(form.precioHora);
     if (form.precioHora === '' || form.precioHora === null || form.precioHora === undefined) {
-      clientErrors.precioHora = 'precioHora es obligatorio';
+      clientErrors.precioHora = 'precio por hora es obligatorio';
     } else if (parsedPrice === '') {
-      clientErrors.precioHora = 'precioHora debe ser numérico';
+      clientErrors.precioHora = 'precio por hora debe ser numérico';
     } else if (parsedPrice < 0) {
-      clientErrors.precioHora = 'precioHora debe ser mayor o igual a 0';
+      clientErrors.precioHora = 'precio por hora debe ser mayor o igual a 0';
     }
 
     if (Object.keys(clientErrors).length > 0) {
@@ -123,13 +123,11 @@ export default function CanchasCrud() {
       const status = err?.status || (err?.data && err.data.status) || 0;
       const data = err?.data || null;
 
-      // if backend returned structured errors
       if (data && data.errors && typeof data.errors === 'object') {
         setFieldErrors(data.errors);
         setError('Corrige los errores en el formulario');
         if (data.errors.nombreCancha && firstErrorRef?.current) firstErrorRef.current.focus();
       } else if (status === 409) {
-        // conflict (duplicate)
         const msg = data?.message || err?.message || 'Conflicto';
         setFieldErrors({ nombreCancha: msg });
         setError('Corrige los errores en el formulario');
@@ -170,7 +168,7 @@ export default function CanchasCrud() {
   }
 
   async function handleDelete(id) {
-    if (!confirm('Eliminar cancha?')) return;
+    if (!window.confirm('Eliminar cancha?')) return;
     setError(null);
     setSuccess(null);
     setFieldErrors({});
@@ -204,91 +202,93 @@ export default function CanchasCrud() {
 
         {success && <div className="msg success" role="status">{success}</div>}
 
-        <form onSubmit={handleSave} className="cancha-form" noValidate>
-          <div className="form-row">
-            <div style={{ flex: 1 }}>
-              <input
-                placeholder="Nombre"
-                value={form.nombreCancha}
-                onChange={e => setForm({ ...form, nombreCancha: e.target.value })}
-                required
-                className="input"
-                aria-invalid={!!fieldErrors.nombreCancha}
-                aria-describedby={fieldErrors.nombreCancha ? 'err-nombre' : undefined}
-                ref={el => { if (fieldErrors.nombreCancha && !firstErrorRef.current) firstErrorRef.current = el; }}
-              />
-              {fieldErrors.nombreCancha && <div id="err-nombre" className="field-error" role="alert">{fieldErrors.nombreCancha}</div>}
+        {isAdmin && (
+          <form onSubmit={handleSave} className="cancha-form" noValidate>
+            <div className="form-row">
+              <div style={{ flex: 1 }}>
+                <input
+                  placeholder="Nombre"
+                  value={form.nombreCancha}
+                  onChange={e => setForm({ ...form, nombreCancha: e.target.value })}
+                  required
+                  className="input"
+                  aria-invalid={!!fieldErrors.nombreCancha}
+                  aria-describedby={fieldErrors.nombreCancha ? 'err-nombre' : undefined}
+                  ref={el => { if (fieldErrors.nombreCancha && !firstErrorRef.current) firstErrorRef.current = el; }}
+                />
+                {fieldErrors.nombreCancha && <div id="err-nombre" className="field-error" role="alert">{fieldErrors.nombreCancha}</div>}
+              </div>
+
+              <div style={{ minWidth: 160 }}>
+                <input
+                  placeholder="Deporte"
+                  value={form.deporte}
+                  onChange={e => setForm({ ...form, deporte: e.target.value })}
+                  className="input"
+                  aria-invalid={!!fieldErrors.deporte}
+                  aria-describedby={fieldErrors.deporte ? 'err-deporte' : undefined}
+                />
+                {fieldErrors.deporte && <div id="err-deporte" className="field-error" role="alert">{fieldErrors.deporte}</div>}
+              </div>
+
+              <div style={{ minWidth: 140 }}>
+                <input
+                  placeholder="Precio Hora"
+                  value={form.precioHora}
+                  onChange={e => setForm({ ...form, precioHora: e.target.value })}
+                  inputMode="decimal"
+                  pattern="[0-9]*[.,]?[0-9]*"
+                  className="input price-input"
+                  aria-invalid={!!fieldErrors.precioHora}
+                  aria-describedby={fieldErrors.precioHora ? 'err-precio' : undefined}
+                />
+                {fieldErrors.precioHora && <div id="err-precio" className="field-error" role="alert">{fieldErrors.precioHora}</div>}
+              </div>
+
+              <div style={{ minWidth: 140 }}>
+                <input
+                  placeholder="Estado"
+                  value={form.Estado}
+                  onChange={e => setForm({ ...form, Estado: e.target.value })}
+                  className="input"
+                  aria-invalid={!!fieldErrors.Estado}
+                  aria-describedby={fieldErrors.Estado ? 'err-estado' : undefined}
+                />
+                {fieldErrors.Estado && <div id="err-estado" className="field-error" role="alert">{fieldErrors.Estado}</div>}
+              </div>
             </div>
 
-            <div style={{ minWidth: 160 }}>
-              <input
-                placeholder="Deporte"
-                value={form.deporte}
-                onChange={e => setForm({ ...form, deporte: e.target.value })}
-                className="input"
-                aria-invalid={!!fieldErrors.deporte}
-                aria-describedby={fieldErrors.deporte ? 'err-deporte' : undefined}
-              />
-              {fieldErrors.deporte && <div id="err-deporte" className="field-error" role="alert">{fieldErrors.deporte}</div>}
+            <textarea
+              placeholder="Descripcion"
+              value={form.descripcion}
+              onChange={e => setForm({ ...form, descripcion: e.target.value })}
+              className="textarea"
+              aria-invalid={!!fieldErrors.descripcion}
+              aria-describedby={fieldErrors.descripcion ? 'err-desc' : undefined}
+            />
+            {fieldErrors.descripcion && <div id="err-desc" className="field-error" role="alert">{fieldErrors.descripcion}</div>}
+
+            <div className="form-actions" style={{ marginTop: 12 }}>
+              <button type="submit" disabled={loading} className="btn primary">{editing ? 'Actualizar' : 'Crear'}</button>
+              {editing && (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    setEditing(null);
+                    setForm({ nombreCancha: '', deporte: 'Futbol', descripcion: '', precioHora: '', Estado: 'Disponible' });
+                    setError(null);
+                    setSuccess(null);
+                    setFieldErrors({});
+                    firstErrorRef.current = null;
+                  }}
+                >
+                  Cancelar
+                </button>
+              )}
             </div>
-
-            <div style={{ minWidth: 140 }}>
-              <input
-                placeholder="Precio Hora"
-                value={form.precioHora}
-                onChange={e => setForm({ ...form, precioHora: e.target.value })}
-                inputMode="decimal"
-                pattern="[0-9]*[.,]?[0-9]*"
-                className="input price-input"
-                aria-invalid={!!fieldErrors.precioHora}
-                aria-describedby={fieldErrors.precioHora ? 'err-precio' : undefined}
-              />
-              {fieldErrors.precioHora && <div id="err-precio" className="field-error" role="alert">{fieldErrors.precioHora}</div>}
-            </div>
-
-            <div style={{ minWidth: 140 }}>
-              <input
-                placeholder="Estado"
-                value={form.Estado}
-                onChange={e => setForm({ ...form, Estado: e.target.value })}
-                className="input"
-                aria-invalid={!!fieldErrors.Estado}
-                aria-describedby={fieldErrors.Estado ? 'err-estado' : undefined}
-              />
-              {fieldErrors.Estado && <div id="err-estado" className="field-error" role="alert">{fieldErrors.Estado}</div>}
-            </div>
-          </div>
-
-          <textarea
-            placeholder="Descripcion"
-            value={form.descripcion}
-            onChange={e => setForm({ ...form, descripcion: e.target.value })}
-            className="textarea"
-            aria-invalid={!!fieldErrors.descripcion}
-            aria-describedby={fieldErrors.descripcion ? 'err-desc' : undefined}
-          />
-          {fieldErrors.descripcion && <div id="err-desc" className="field-error" role="alert">{fieldErrors.descripcion}</div>}
-
-          <div className="form-actions" style={{ marginTop: 12 }}>
-            <button type="submit" disabled={loading} className="btn primary">{editing ? 'Actualizar' : 'Crear'}</button>
-            {editing && (
-              <button
-                type="button"
-                className="btn"
-                onClick={() => {
-                  setEditing(null);
-                  setForm({ nombreCancha: '', deporte: 'Futbol', descripcion: '', precioHora: '', Estado: 'Disponible' });
-                  setError(null);
-                  setSuccess(null);
-                  setFieldErrors({});
-                  firstErrorRef.current = null;
-                }}
-              >
-                Cancelar
-              </button>
-            )}
-          </div>
-        </form>
+          </form>
+        )}
 
         <table className="table" aria-live="polite">
           <thead>
@@ -298,11 +298,13 @@ export default function CanchasCrud() {
               <th>Deporte</th>
               <th>Precio</th>
               <th>Estado</th>
-              <th>Acciones</th>
+              {isAdmin && <th>Acciones</th>}
             </tr>
           </thead>
           <tbody>
-            {canchas.map(c => (
+            {canchas
+              .filter(c => isAdmin || c.Estado !== 'Inactivo')
+              .map(c => (
               <tr key={c.idCancha}>
                 <td>{c.idCancha}</td>
                 <td className="name-col">
@@ -312,10 +314,12 @@ export default function CanchasCrud() {
                 <td>{c.deporte}</td>
                 <td>{formatPrice(c.precioHora)}</td>
                 <td>{c.Estado}</td>
-                <td>
-                  <button type="button" onClick={() => handleEdit(c)} className="btn small">Editar</button>
-                  <button type="button" onClick={() => handleDelete(c.idCancha)} className="btn small danger">Eliminar</button>
-                </td>
+                {isAdmin && (
+                  <td>
+                    <button type="button" onClick={() => handleEdit(c)} className="btn small">Editar</button>
+                    <button type="button" onClick={() => handleDelete(c.idCancha)} className="btn small danger">Eliminar</button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
