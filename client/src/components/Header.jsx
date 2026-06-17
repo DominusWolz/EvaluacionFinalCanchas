@@ -81,7 +81,23 @@ export default function Header() {
             fontWeight: 800,
             boxShadow: '0 6px 14px rgba(11,47,91,0.25)'
           }}>
-            AC
+            {/* AQUÍ ESTÁ EL LOGO SVG DE LA POKÉBALL */}
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              width="30" 
+              height="30" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="currentColor" 
+              strokeWidth="2.5" 
+              strokeLinecap="round" 
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="10"></circle>
+              <circle cx="12" cy="12" r="3"></circle>
+              <line x1="2" y1="12" x2="9" y2="12"></line>
+              <line x1="15" y1="12" x2="22" y2="12"></line>
+            </svg>
           </div>
           <div style={{ marginLeft: 6 }}>
             <div style={{ fontWeight: 700, fontSize: 16 }}>App Canchas</div>
@@ -106,7 +122,6 @@ export default function Header() {
             <button onClick={handleLogout} style={primaryBtn}>Cerrar sesión</button>
           </div>
         ) : (
-          // Usuario no autenticado: no mostrar botones en la esquina superior derecha
           null
         )}
       </div>

@@ -1,6 +1,6 @@
 // client/src/pages/ReservacionesCrud.jsx
 import React, { useEffect, useState } from 'react';
-import { apiFetch } from '../api';
+import apiFetch from '../api';
 import Header from '../components/Header';
 
 export default function ReservacionesCrud() {
@@ -9,7 +9,6 @@ export default function ReservacionesCrud() {
   
   const today = new Date().toISOString().split('T')[0];
   const [filtroFecha, setFiltroFecha] = useState(today);
-  const [filtroCancha, setFiltroCancha] = useState('');
 
   const [formReserva, setFormReserva] = useState({
     idCancha: '',
@@ -114,8 +113,13 @@ export default function ReservacionesCrud() {
                   <label>Cancha</label>
                   <select className="input" required value={formReserva.idCancha} onChange={(e) => setFormReserva({...formReserva, idCancha: e.target.value})}>
                     <option value="" disabled>Seleccione...</option>
-                    {canchas.map(c => (
-                      <option key={c.idCancha} value={c.idCancha}>{c.nombreCancha} (${Number(c.precioHora).toLocaleString()})</option>
+                    {/* AQUÍ ESTÁ EL FILTRO APLICADO */}
+                    {canchas
+                      .filter(c => c.Estado !== 'Inactivo')
+                      .map(c => (
+                      <option key={c.idCancha} value={c.idCancha}>
+                        {c.nombreCancha} (${Number(c.precioHora).toLocaleString()})
+                      </option>
                     ))}
                   </select>
                 </div>
