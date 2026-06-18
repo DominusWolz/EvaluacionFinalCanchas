@@ -1,9 +1,14 @@
 // client/src/pages/ReservacionesCrud.jsx
 import React, { useEffect, useState } from 'react';
-import apiFetch from '../api';
+import { apiFetch } from '../api';
 import Header from '../components/Header';
 
 export default function ReservacionesCrud() {
+  // Verificamos si es el administrador
+  const userStr = localStorage.getItem('user');
+  const currentUser = userStr ? JSON.parse(userStr) : null;
+  const isAdmin = currentUser?.email === 'pikachu234@gmail.com';
+
   const [canchas, setCanchas] = useState([]);
   const [misReservas, setMisReservas] = useState([]);
   
@@ -27,7 +32,10 @@ export default function ReservacionesCrud() {
       const canchasData = await apiFetch('/canchas', { method: 'GET' });
       setCanchas(Array.isArray(canchasData) ? canchasData : []);
 
-      const reservasData = await apiFetch('/reservaciones?mine=true', { method: 'GET' });
+      // AQUÍ ESTÁ LA MAGIA: Si es admin trae todas, si no, trae solo las suyas
+      const endpoint = isAdmin ? '/reservaciones' : '/reservaciones?mine=true';
+      const reservasData = await apiFetch(endpoint, { method: 'GET' });
+      
       setMisReservas(Array.isArray(reservasData) ? reservasData : []);
     } catch (err) {
       setError(err?.data?.message || err?.message || 'Error al cargar datos');
@@ -113,7 +121,6 @@ export default function ReservacionesCrud() {
                   <label>Cancha</label>
                   <select className="input" required value={formReserva.idCancha} onChange={(e) => setFormReserva({...formReserva, idCancha: e.target.value})}>
                     <option value="" disabled>Seleccione...</option>
-                    {/* AQUÍ ESTÁ EL FILTRO APLICADO */}
                     {canchas
                       .filter(c => c.Estado !== 'Inactivo')
                       .map(c => (
@@ -140,14 +147,18 @@ export default function ReservacionesCrud() {
         </div>
 
         {/* Tabla de Reservas */}
-        <h3 style={{ marginTop: '32px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>Mi Historial de Reservas</h3>
+        <h3 style={{ marginTop: '32px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+          {isAdmin ? 'Todas las Reservas del Sistema' : 'Mi Historial de Reservas'}
+        </h3>
+        
         {loading ? <div className="empty">Cargando...</div> : misReservas.length === 0 ? (
-          <div className="empty">No tienes reservaciones registradas.</div>
+          <div className="empty">No hay reservaciones registradas.</div>
         ) : (
           <table className="table">
             <thead>
               <tr>
                 <th>N° Reserva</th>
+                {isAdmin && <th>ID Usuario</th>}
                 <th>Cancha</th>
                 <th>Fecha y Hora</th>
                 <th>Precio</th>
@@ -164,6 +175,7 @@ export default function ReservacionesCrud() {
                 return (
                   <tr key={r.idReserva || r.id}>
                     <td>#{r.idReserva || r.id}</td>
+                    {isAdmin && <td>{r.idUsuario || '-'}</td>}
                     <td className="name-col"><div className="name">{nombreCancha}</div></td>
                     <td>{fechaFormat} a {finFormat}</td>
                     <td>${Number(r.precio_total || 0).toLocaleString()}</td>
